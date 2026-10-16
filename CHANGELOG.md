@@ -14,4 +14,4 @@ First release.
 - `OmniConva::orderUpdated()` for order status and tracking
 - `<x-omniconva-chat />` Blade component, with signed customer identity
 - `omniconva:install`, `omniconva:test` and `omniconva:ping` commands
-- Laravel 11, 12 and 13; PHP 8.2+
+- Laravel 12 and 13; PHP 8.2+

@@ -12,7 +12,7 @@ This package does the integration work for you:
 
 You write two small classes: which products to share, and how to save an order.
 
-**Requirements:** PHP 8.2+, Laravel 11, 12 or 13.
+**Requirements:** PHP 8.2+, Laravel 12 or 13.
 
 ## Install
 
@@ -133,6 +133,7 @@ class Orders implements OrderHandler
 - **Once per order.** `createOrder()` runs once per order. If OmniConva retries after a timeout, the package answers with the first result.
 - **One transaction.** It runs inside a database transaction together with that bookkeeping.
 - **Refusing an order.** Throw an exception to refuse an order, for example when the address is outside your delivery area. The message is shown to the store owner in OmniConva, and the order can be retried.
+- **The id you return.** The first argument of `OrderResult::make()` is the order reference the customer is told in chat, and the one `OmniConva::orderUpdated()` uses, so return what your customers know (your id or your order number).
 - **Test orders.** Test orders sent from the OmniConva dashboard (`$order->test`) are answered without calling your class. Set `'pass_test_orders' => true` to receive them.
 
 ## 3. Keep the catalog in sync
