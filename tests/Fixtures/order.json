@@ -1,0 +1,33 @@
+{
+  "id": "6a3f0c1e-2b7d-4c1a-9f3e-8d2b1c0a9e77",
+  "order_number": "1042",
+  "source": "omniconva",
+  "currency": "BDT",
+  "customer": { "name": "Rahim Uddin", "phone": "01711000000" },
+  "shipping_address": {
+    "address": "House 12, Road 4, Dhanmondi",
+    "city": "Dhaka",
+    "state": null,
+    "postcode": null,
+    "country": "BD"
+  },
+  "items": [
+    {
+      "product_id": "1001",
+      "variant_id": "1001-M",
+      "sku": "HOODIE-M",
+      "title": "Hero Hoodie – M",
+      "quantity": 2,
+      "unit_price": "1200.00",
+      "total": "2400.00",
+      "image": "https://cdn.yourwebsite.com/hoodie.jpg"
+    }
+  ],
+  "subtotal": "2400.00",
+  "discount": "0.00",
+  "shipping": { "title": "Inside Dhaka", "amount": "60.00" },
+  "fees": [],
+  "total": "2460.00",
+  "payment": { "method": "cash_on_delivery", "status": "unpaid" },
+  "note": "Placed through OmniConva chat, cash on delivery."
+}

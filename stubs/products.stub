@@ -1,0 +1,42 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use OmniConva\Laravel\Data\ProductData;
+use OmniConva\Laravel\Data\VariantData;
+use OmniConva\Laravel\Sources\EloquentProductSource;
+
+/**
+ * The products OmniConva may sell, and how each one maps. OmniConva reads
+ * them page by page (GET /omniconva/products), and the SyncsWithOmniConva
+ * trait on your model sends changes with the same map().
+ */
+class Products extends EloquentProductSource
+{
+    public function query(): Builder
+    {
+        // Eager-load whatever map() reads.
+        return Product::query();
+    }
+
+    public function map(Model $product): ProductData
+    {
+        return ProductData::make($product->getKey(), $product->name)
+            ->price($product->price)
+            // ->url(route('products.show', $product))
+            // ->description($product->description)
+            // ->salePrice($product->sale_price)
+            // ->stockQuantity($product->stock)
+            // ->images([$product->image_url])
+            // ->categories($product->categories->pluck('name'))
+            // ->variants($product->variants->map(
+            //     fn ($variant) => VariantData::make($variant->id, $variant->name, $variant->price)
+            //         ->stockQuantity($variant->stock)
+            //         ->options(['Size' => $variant->size])
+            // ))
+            ->updatedAt($product->updated_at);
+    }
+}

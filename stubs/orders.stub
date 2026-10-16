@@ -1,0 +1,40 @@
+<?php
+
+namespace {{ namespace }};
+
+use OmniConva\Laravel\Contracts\OrderHandler;
+use OmniConva\Laravel\Data\OrderData;
+use OmniConva\Laravel\Data\OrderResult;
+use RuntimeException;
+
+/**
+ * Saves an order a customer confirmed in OmniConva chat (cash on delivery,
+ * unpaid). Called once per order; retries are answered by the package.
+ * Throw an exception to refuse an order: its message shows in OmniConva.
+ */
+class Orders implements OrderHandler
+{
+    public function createOrder(OrderData $order): OrderResult
+    {
+        // $saved = \App\Models\Order::create([
+        //     'customer_name' => $order->customer->name,
+        //     'phone' => $order->customer->phone,
+        //     'address' => $order->shippingAddress->address,
+        //     'city' => $order->shippingAddress->city,
+        //     'total' => $order->total,
+        // ]);
+        //
+        // foreach ($order->items as $item) {
+        //     $saved->items()->create([
+        //         'product_id' => $item->productId,
+        //         'variant_id' => $item->variantId,
+        //         'quantity' => $item->quantity,
+        //         'price' => $item->unitPrice,
+        //     ]);
+        // }
+        //
+        // return OrderResult::make($saved->id, $saved->number);
+
+        throw new RuntimeException('Orders::createOrder() is not written yet.');
+    }
+}
