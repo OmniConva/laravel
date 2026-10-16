@@ -4,6 +4,7 @@ namespace OmniConva\Laravel\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
+use OmniConva\Laravel\Exceptions\OmniConvaException;
 use OmniConva\Laravel\OmniConva;
 
 class InstallCommand extends Command
@@ -54,7 +55,13 @@ class InstallCommand extends Command
         $current = fn (string $key, string $configKey) => (string) (config($configKey) ?? '');
         $webhookUrl = $this->option('webhook-url') ?? $this->ask('Webhook URL', $current('OMNICONVA_WEBHOOK_URL', 'omniconva.webhook_url'));
         if (filled($webhookUrl)) {
-            OmniConva::assertSecureUrl('OMNICONVA_WEBHOOK_URL', (string) $webhookUrl);
+            try {
+                OmniConva::assertSecureUrl('OMNICONVA_WEBHOOK_URL', (string) $webhookUrl);
+            } catch (OmniConvaException $error) {
+                $this->components->error($error->getMessage());
+
+                return self::FAILURE;
+            }
         }
         $values = [
             'OMNICONVA_WEBHOOK_URL' => $webhookUrl,

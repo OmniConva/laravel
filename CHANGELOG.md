@@ -16,8 +16,10 @@ Security hardening, from a review of the package.
   is empty with a cached config), never overwrites a credential with an
   empty value, always quotes what it writes, and warns when secrets are
   passed as options.
-- `OMNICONVA_WEBHOOK_URL` must be https (http for localhost only);
-  webhook deliveries no longer follow redirects.
+- **Breaking for http setups:** `OMNICONVA_WEBHOOK_URL` must be https;
+  `http://` is accepted for localhost and `127.x`, and elsewhere only with
+  `OMNICONVA_ALLOW_HTTP=1` (a Docker Compose service name, for instance).
+  Webhook deliveries no longer follow redirects.
 - Idempotency claims carry an owner token, so a request whose claim was
   taken over after a stall can't release or complete the one that replaced
   it; `key` widened to 255. Run `php artisan migrate` after updating

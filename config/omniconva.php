@@ -91,6 +91,11 @@ return [
 
     'webhook_timeout' => 10,
 
+    // Accept a plain http:// webhook URL on hosts other than localhost (a
+    // Docker service name, a LAN address). Off by default: the token and every
+    // payload travel over that URL.
+    'allow_http' => env('OMNICONVA_ALLOW_HTTP', false),
+
     /*
     |--------------------------------------------------------------------------
     | Chat widget

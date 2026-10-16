@@ -57,19 +57,25 @@ class OmniConva
 
     /**
      * The webhook URL has to be https: the token and every payload travel
-     * with it. Plain http is accepted for a local machine only.
+     * with it. Plain http is accepted for a local machine, or anywhere when
+     * OMNICONVA_ALLOW_HTTP=1 opts a private network (Docker, a LAN) in.
      *
      * @internal
      */
     public static function assertSecureUrl(string $name, string $url): void
     {
         $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if ($scheme === 'https') {
+            return;
+        }
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        $local = in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)
+        $local = in_array($host, ['localhost', '[::1]'], true)
+            || str_starts_with($host, '127.')
             || str_ends_with($host, '.localhost')
             || str_ends_with($host, '.test');
-        if ($scheme !== 'https' && ! ($scheme === 'http' && $local)) {
-            throw new OmniConvaException($name.' must start with https:// (http:// is allowed for localhost only)');
+        $allowed = $local || filter_var(env('OMNICONVA_ALLOW_HTTP', config('omniconva.allow_http', false)), FILTER_VALIDATE_BOOL);
+        if (! ($scheme === 'http' && $allowed)) {
+            throw new OmniConvaException($name.' must start with https:// (http:// is allowed for localhost, or anywhere with OMNICONVA_ALLOW_HTTP=1)');
         }
     }
 
