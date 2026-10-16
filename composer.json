@@ -1,7 +1,15 @@
 {
     "name": "omniconva/laravel",
     "description": "Connect a Laravel store to OmniConva: product sync, AI chat orders and webhooks in a few lines.",
-    "keywords": ["omniconva", "laravel", "ai", "chat", "ecommerce", "webhooks", "sales agent"],
+    "keywords": [
+        "omniconva",
+        "laravel",
+        "ai",
+        "chat",
+        "ecommerce",
+        "webhooks",
+        "sales agent"
+    ],
     "homepage": "https://omniconva.com/docs/custom-website-api",
     "license": "MIT",
     "type": "library",
@@ -14,7 +22,6 @@
     ],
     "require": {
         "php": "^8.2",
-        "guzzlehttp/guzzle": "^7.8",
         "illuminate/bus": "^11.0 || ^12.0 || ^13.0",
         "illuminate/console": "^11.0 || ^12.0 || ^13.0",
         "illuminate/database": "^11.0 || ^12.0 || ^13.0",
