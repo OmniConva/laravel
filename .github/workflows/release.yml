@@ -1,0 +1,87 @@
+name: release
+
+# A published GitHub release (tag vX.Y.Z) is checked and tested, then waits
+# for a maintainer's approval in the protected "packagist" environment.
+# Only after approval does Packagist get told to update. The environment
+# holds the only Packagist credential (a "safe" update-only API token).
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Version and changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches OmniConva::VERSION and has a changelog entry
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          src="$(sed -n "s/.*const VERSION = '\(.*\)';.*/\1/p" src/OmniConva.php)"
+          echo "tag=$tag OmniConva::VERSION=$src"
+          test "$tag" = "$src"
+          grep -q "^## $tag " CHANGELOG.md
+
+  test:
+    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        laravel: ['12', '13']
+        include:
+          - laravel: '12'
+            testbench: '10'
+          - laravel: '13'
+            testbench: '11'
+        exclude:
+          - laravel: '13'
+            php: '8.2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, sqlite3
+          coverage: none
+      - run: |
+          composer require "laravel/framework:^${{ matrix.laravel }}.0" "orchestra/testbench:^${{ matrix.testbench }}.0" --dev --no-update --no-interaction
+          composer update --prefer-dist --no-interaction --no-progress
+      - run: vendor/bin/pest
+
+  packagist:
+    name: Update Packagist
+    needs: test
+    runs-on: ubuntu-latest
+    # Waits here for a required reviewer to approve the deployment.
+    environment:
+      name: packagist
+      url: https://packagist.org/packages/omniconva/laravel
+    steps:
+      - name: Tell Packagist to update
+        env:
+          PACKAGIST_USERNAME: ${{ vars.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          test -n "$PACKAGIST_USERNAME" && test -n "$PACKAGIST_TOKEN"
+          curl --fail-with-body -sS -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${PACKAGIST_USERNAME}:${PACKAGIST_TOKEN}" \
+            -d '{"repository":"https://packagist.org/packages/omniconva/laravel"}' \
+            https://packagist.org/api/update-package
+      - name: Wait for the version to appear
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          for i in $(seq 1 30); do
+            if curl -sS "https://repo.packagist.org/p2/omniconva/laravel.json" | grep -q "\"version\":\"$tag\""; then
+              echo "$tag is on Packagist"; exit 0
+            fi
+            sleep 10
+          done
+          echo "$tag did not appear on Packagist within 5 minutes"; exit 1

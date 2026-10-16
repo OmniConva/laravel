@@ -240,6 +240,13 @@ See [`config/omniconva.php`](config/omniconva.php):
 composer test
 ```
 
+## Releasing (maintainers)
+
+1. Bump `OmniConva::VERSION` in `src/OmniConva.php`, add a CHANGELOG entry, and commit.
+2. Create a GitHub release with the tag `vX.Y.Z`. Release tags can only be created by repository admins, and releases are immutable once published.
+3. The `release` workflow checks that the tag matches `OmniConva::VERSION` and has a changelog entry, then runs the full test matrix.
+4. Approve the **packagist** deployment in the workflow run (GitHub asks the required reviewer). Only then is Packagist told to update.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
