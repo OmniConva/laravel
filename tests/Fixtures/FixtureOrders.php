@@ -5,6 +5,7 @@ namespace OmniConva\Laravel\Tests\Fixtures;
 use OmniConva\Laravel\Contracts\OrderHandler;
 use OmniConva\Laravel\Data\OrderData;
 use OmniConva\Laravel\Data\OrderResult;
+use OmniConva\Laravel\Exceptions\OrderRefused;
 use RuntimeException;
 
 class FixtureOrders implements OrderHandler
@@ -20,7 +21,10 @@ class FixtureOrders implements OrderHandler
     public function createOrder(OrderData $order): OrderResult
     {
         if ($order->customer->name === 'Refuse Me') {
-            throw new RuntimeException('Out of delivery area');
+            throw new OrderRefused('Out of delivery area');
+        }
+        if ($order->customer->name === 'Break Me') {
+            throw new RuntimeException('insert into orders (phone) values ("017") — connection refused 10.0.0.5:5432');
         }
         self::$created[] = $order;
 

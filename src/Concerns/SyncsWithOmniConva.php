@@ -4,6 +4,7 @@ namespace OmniConva\Laravel\Concerns;
 
 use OmniConva\Laravel\Data\ProductData;
 use OmniConva\Laravel\Facades\OmniConva;
+use Throwable;
 
 /**
  * Keeps OmniConva's copy of this product current: saving sends
@@ -12,6 +13,11 @@ use OmniConva\Laravel\Facades\OmniConva;
  *
  * The product is mapped with your ProductSource's map(); override
  * toOmniConvaProduct() to map it differently.
+ *
+ * Syncing is best effort and never blocks your own save: a problem mapping
+ * or encoding the product (a bug in map(), a description in a legacy
+ * encoding) is reported to your exception handler and the save goes
+ * through.
  */
 trait SyncsWithOmniConva
 {
@@ -19,14 +25,14 @@ trait SyncsWithOmniConva
     {
         static::saved(function ($model) {
             if ($model->shouldSyncToOmniConva()) {
-                OmniConva::productUpdated($model);
+                static::reportOmniConvaSyncFailure(fn () => OmniConva::productUpdated($model));
             }
         });
 
         static::deleted(function ($model) {
             // Soft deletes count: OmniConva should stop selling it either way.
             if ($model->shouldSyncToOmniConva()) {
-                OmniConva::productDeleted($model->getKey());
+                static::reportOmniConvaSyncFailure(fn () => OmniConva::productDeleted($model->getKey()));
             }
         });
     }
@@ -40,5 +46,15 @@ trait SyncsWithOmniConva
     public function toOmniConvaProduct(): ?ProductData
     {
         return OmniConva::mapProduct($this);
+    }
+
+    /** @internal */
+    protected static function reportOmniConvaSyncFailure(callable $sync): void
+    {
+        try {
+            $sync();
+        } catch (Throwable $error) {
+            report($error);
+        }
     }
 }

@@ -132,7 +132,7 @@ class Orders implements OrderHandler
 **How orders behave:**
 - **Once per order.** `createOrder()` runs once per order. If OmniConva retries after a timeout, the package answers with the first result.
 - **One transaction.** It runs inside a database transaction together with that bookkeeping.
-- **Refusing an order.** Throw an exception to refuse an order, for example when the address is outside your delivery area. The message is shown to the store owner in OmniConva, and the order can be retried.
+- **Refusing an order.** Throw `OmniConva\Laravel\Exceptions\OrderRefused` to refuse an order, for example when the address is outside your delivery area. Its message is shown to the store owner in OmniConva, and the order can be retried. Any other exception is reported to your exception handler and answered to OmniConva as a generic failure — SQL, table names and customer data from a database error never leave your server.
 - **The id you return.** The first argument of `OrderResult::make()` is the order reference the customer is told in chat, and the one `OmniConva::orderUpdated()` uses, so return what your customers know (your id or your order number).
 - **Test orders.** Test orders sent from the OmniConva dashboard (`$order->test`) are answered without calling your class. Set `'pass_test_orders' => true` to receive them.
 
@@ -231,8 +231,11 @@ See [`config/omniconva.php`](config/omniconva.php):
 ## How it's secured
 
 - **Requests from OmniConva** carry `X-OmniConva-Signature: t=<unix>,v1=<hex>`, an HMAC-SHA256 of `"<t>.<METHOD>.<path?query>.<body>"` made with your signing secret. Requests with a missing or wrong signature, or one older than 5 minutes, get `401`.
-- **Webhooks you send** carry `Authorization: Bearer <token>` and an HMAC of `"<t>.<body>"`.
-- **Keep the token and secret out of version control.** If one leaks, rotate it in OmniConva and update `.env`.
+- **Webhooks you send** carry `Authorization: Bearer <token>` and an HMAC of `"<t>.<body>"`. `OMNICONVA_WEBHOOK_URL` must be `https://` (plain `http://` is accepted for localhost only), and redirects are not followed, so the token never travels in clear.
+- **Only refusals leave your server.** An `OrderRefused` message is relayed to OmniConva; every other exception from your classes is answered generically.
+- **Keep the token and secret out of version control.** If one leaks, rotate it in OmniConva and update `.env`. Prefer typing them at `omniconva:install`'s prompts over passing `--token=`/`--secret=`, which land in your shell history.
+- **Behind a proxy or CDN.** The signature covers the path and query exactly as OmniConva sent them, so a proxy that rewrites URLs (strips a path prefix, adds a trailing slash or tracking parameters) makes every request fail with `401`. Point OmniConva at a URL the proxy passes through unchanged.
+- **Caching.** Don't serve pages that contain `<x-omniconva-chat />` for signed-in users from a full-page or CDN cache: the component inlines that user's name, email, phone and a signed identity for the chat. On a cacheable page, render it with `:customer="false"`.
 
 ## Testing
 

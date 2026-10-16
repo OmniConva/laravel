@@ -69,7 +69,7 @@ class ChatWidget extends Component
                 'phone' => $user->phone ?? null,
             ];
         }
-        if (! isset($customer['id']) || (string) $customer['id'] === '') {
+        if (! isset($customer['id']) || ! is_scalar($customer['id']) || (string) $customer['id'] === '') {
             return null;
         }
         $customer['id'] = (string) $customer['id'];

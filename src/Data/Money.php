@@ -17,7 +17,12 @@ final class Money
             }
         }
 
-        return number_format((float) $amount, 2, '.', '');
+        $value = (float) $amount;
+        if (! is_finite($value)) {
+            return null;
+        }
+
+        return number_format($value, 2, '.', '');
     }
 
     public static function toFloat(mixed $amount): float

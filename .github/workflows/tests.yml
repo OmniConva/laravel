@@ -24,8 +24,8 @@ jobs:
             php: '8.2'
     name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: shivammathur/setup-php@db91e1a0e48e84637d325a7ee4d2677e146ceec4 # 2.36.0
         with:
           php-version: ${{ matrix.php }}
           extensions: pdo_sqlite, sqlite3
@@ -40,8 +40,8 @@ jobs:
   style:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: shivammathur/setup-php@db91e1a0e48e84637d325a7ee4d2677e146ceec4 # 2.36.0
         with:
           php-version: '8.4'
           coverage: none

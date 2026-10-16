@@ -35,7 +35,13 @@ class OmniConvaServiceProvider extends ServiceProvider
         $config = $this->app->make('config');
 
         if ($config->get('omniconva.routes.enabled', true)) {
-            Route::prefix(trim((string) $config->get('omniconva.routes.prefix', 'omniconva'), '/'))
+            $prefix = trim((string) $config->get('omniconva.routes.prefix', 'omniconva'), '/');
+            // An empty prefix would register /products, /orders and /health at
+            // the root of the app, shadowing whatever lives there.
+            if ($prefix === '') {
+                throw new \InvalidArgumentException('omniconva.routes.prefix (OMNICONVA_ROUTE_PREFIX) must not be empty');
+            }
+            Route::prefix($prefix)
                 ->middleware((array) $config->get('omniconva.routes.middleware', ['api']))
                 ->group(__DIR__.'/../routes/omniconva.php');
         }
