@@ -2,12 +2,14 @@
 
 namespace OmniConva\Laravel\Http\Controllers;
 
+use DomainException;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use OmniConva\Laravel\Data\OrderData;
+use OmniConva\Laravel\Exceptions\OrderRefused;
 use OmniConva\Laravel\Idempotency\IdempotencyStore;
 use OmniConva\Laravel\OmniConva;
 use Throwable;
@@ -25,12 +27,14 @@ class OrdersController
      * POST {prefix}/orders. Creates the order once per Idempotency-Key:
      * 201 with {order_id, order_number}; a retry of a finished order gets
      * the same body with 200; one still being created gets 503 so OmniConva
-     * tries again shortly. 422 when the order can't be created (the message
-     * shows in OmniConva's connection logs).
+     * tries again shortly. 422 when your OrderHandler refuses the order
+     * (an OrderRefused exception — its message shows in OmniConva), 500
+     * with a generic message when it fails for any other reason.
      */
     public function store(Request $request): JsonResponse
     {
-        $payload = json_decode($request->getContent(), true);
+        // Big numeric ids stay strings instead of turning into floats.
+        $payload = json_decode($request->getContent(), true, 512, JSON_BIGINT_AS_STRING);
         if (! is_array($payload)) {
             return new JsonResponse(['message' => 'The body must be a JSON object'], 422);
         }
@@ -60,19 +64,29 @@ class OrdersController
                 ['Retry-After' => '30'],
             );
         }
+        $owner = $claim['owner'];
 
         try {
-            $response = $this->db->transaction(function () use ($order, $key) {
+            $response = $this->db->transaction(function () use ($order, $key, $owner) {
                 $response = $this->omniconva->orders()->createOrder($order)->toArray();
-                $this->idempotency->complete($key, $response);
+                $this->idempotency->complete($key, $response, $owner);
 
                 return $response;
             });
         } catch (Throwable $error) {
-            $this->idempotency->release($key);
+            $this->idempotency->release($key, $owner);
             $this->exceptions->report($error);
 
-            return new JsonResponse(['message' => $error->getMessage() ?: 'The order could not be created'], 422);
+            // A refusal is for the store owner's eyes. Anything else — a
+            // QueryException carries the SQL, bound customer data and table
+            // names in its message — is answered generically; OmniConva keeps
+            // the response text in its connection logs, which every dashboard
+            // user can read.
+            if ($error instanceof OrderRefused || $error instanceof DomainException) {
+                return new JsonResponse(['message' => $error->getMessage() ?: 'The order was refused'], 422);
+            }
+
+            return new JsonResponse(['message' => 'The order could not be created'], 500);
         }
 
         return new JsonResponse($response, 201);

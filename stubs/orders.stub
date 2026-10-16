@@ -5,12 +5,14 @@ namespace {{ namespace }};
 use OmniConva\Laravel\Contracts\OrderHandler;
 use OmniConva\Laravel\Data\OrderData;
 use OmniConva\Laravel\Data\OrderResult;
-use RuntimeException;
+use OmniConva\Laravel\Exceptions\OrderRefused;
 
 /**
  * Saves an order a customer confirmed in OmniConva chat (cash on delivery,
  * unpaid). Called once per order; retries are answered by the package.
- * Throw an exception to refuse an order: its message shows in OmniConva.
+ * Throw OrderRefused to refuse an order: its message shows in OmniConva.
+ * Any other exception is reported to OmniConva as a generic failure and
+ * stays in your logs.
  */
 class Orders implements OrderHandler
 {
@@ -35,6 +37,6 @@ class Orders implements OrderHandler
         //
         // return OrderResult::make($saved->id, $saved->number);
 
-        throw new RuntimeException('Orders::createOrder() is not written yet.');
+        throw new OrderRefused('Orders::createOrder() is not written yet.');
     }
 }

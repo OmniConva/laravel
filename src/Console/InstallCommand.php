@@ -4,6 +4,7 @@ namespace OmniConva\Laravel\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
+use OmniConva\Laravel\OmniConva;
 
 class InstallCommand extends Command
 {
@@ -44,11 +45,22 @@ class InstallCommand extends Command
 
         $this->newLine();
         $this->line('  Copy these from OmniConva: Settings → Connection → Custom website → Laravel package.');
+        if ($this->option('token') !== null || $this->option('secret') !== null) {
+            $this->components->warn('Secrets passed as options end up in your shell history; prefer typing them at the prompt.');
+        }
+        // What is in place now comes from config(), not env(): with the
+        // config cached (as in production) env() reads nothing, and "Enter
+        // to keep" would have blanked every credential.
+        $current = fn (string $key, string $configKey) => (string) (config($configKey) ?? '');
+        $webhookUrl = $this->option('webhook-url') ?? $this->ask('Webhook URL', $current('OMNICONVA_WEBHOOK_URL', 'omniconva.webhook_url'));
+        if (filled($webhookUrl)) {
+            OmniConva::assertSecureUrl('OMNICONVA_WEBHOOK_URL', (string) $webhookUrl);
+        }
         $values = [
-            'OMNICONVA_WEBHOOK_URL' => $this->option('webhook-url') ?? $this->ask('Webhook URL', (string) env('OMNICONVA_WEBHOOK_URL', '')),
-            'OMNICONVA_WEBHOOK_TOKEN' => $this->option('token') ?? ($this->secret('Webhook token (hidden; Enter to keep)') ?: env('OMNICONVA_WEBHOOK_TOKEN')),
-            'OMNICONVA_SIGNING_SECRET' => $this->option('secret') ?? ($this->secret('Signing secret (hidden; Enter to keep)') ?: env('OMNICONVA_SIGNING_SECRET')),
-            'OMNICONVA_SITE_KEY' => $this->option('site-key') ?? $this->ask('Chat widget Site Key (optional)', (string) env('OMNICONVA_SITE_KEY', '')),
+            'OMNICONVA_WEBHOOK_URL' => $webhookUrl,
+            'OMNICONVA_WEBHOOK_TOKEN' => $this->option('token') ?? ($this->secret('Webhook token (hidden; Enter to keep)') ?: $current('OMNICONVA_WEBHOOK_TOKEN', 'omniconva.webhook_token')),
+            'OMNICONVA_SIGNING_SECRET' => $this->option('secret') ?? ($this->secret('Signing secret (hidden; Enter to keep)') ?: $current('OMNICONVA_SIGNING_SECRET', 'omniconva.signing_secret')),
+            'OMNICONVA_SITE_KEY' => $this->option('site-key') ?? $this->ask('Chat widget Site Key (optional)', $current('OMNICONVA_SITE_KEY', 'omniconva.widget.site_key')),
         ];
         $this->writeEnv($files, $values);
         $this->components->task('Wrote OMNICONVA_* to .env');
@@ -73,9 +85,20 @@ class InstallCommand extends Command
         $contents = $files->exists($path) ? $files->get($path) : '';
         foreach ($values as $key => $value) {
             $value = (string) ($value ?? '');
-            $line = $key.'='.(preg_match('/[\s#"\']/', $value) ? '"'.addcslashes($value, '"\\').'"' : $value);
+            if (preg_match('/[\r\n]/', $value)) {
+                throw new \InvalidArgumentException($key.' must be a single line');
+            }
             $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
-            $contents = preg_match($pattern, $contents)
+            $exists = (bool) preg_match($pattern, $contents);
+            // Nothing typed and nothing known: leave whatever is in .env alone
+            // rather than replacing it with an empty assignment.
+            if ($value === '' && $exists) {
+                continue;
+            }
+            // Always quoted: a value starting with $ or containing # or spaces
+            // would otherwise be expanded or cut short by the .env parser.
+            $line = $key.'="'.addcslashes($value, '"\\$').'"';
+            $contents = $exists
                 ? preg_replace($pattern, str_replace(['\\', '$'], ['\\\\', '\\$'], $line), $contents)
                 : rtrim($contents, "\n").($contents === '' ? '' : "\n").$line."\n";
         }

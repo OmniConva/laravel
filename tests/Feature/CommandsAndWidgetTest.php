@@ -48,16 +48,46 @@ it('installs: config, classes and .env', function () {
             '--force' => true,
         ])->assertSuccessful();
 
+        // Every value is written quoted, so a leading $ or a # survives the
+        // .env parser; the lines already there are replaced, not duplicated.
         expect(file_get_contents($env))
             ->toContain("APP_NAME=Shop\n")
-            ->toContain("OMNICONVA_WEBHOOK_URL=https://api.omniconva.test/webhooks/custom-website/s1\n")
+            ->toContain("OMNICONVA_WEBHOOK_URL=\"https://api.omniconva.test/webhooks/custom-website/s1\"\n")
             ->not->toContain('=old')
-            ->toContain("OMNICONVA_WEBHOOK_TOKEN=tok\n")
+            ->toContain("OMNICONVA_WEBHOOK_TOKEN=\"tok\"\n")
             ->toContain('OMNICONVA_SIGNING_SECRET="sec ret"')
-            ->toContain('OMNICONVA_SITE_KEY=site');
+            ->toContain('OMNICONVA_SITE_KEY="site"');
         expect(file_get_contents($classes.'/Products.php'))->toContain('class Products extends EloquentProductSource')
             ->and(file_get_contents($classes.'/Orders.php'))->toContain('class Orders implements OrderHandler')
             ->and(config_path('omniconva.php'))->toBeFile();
+    } finally {
+        $before === null ? @unlink($env) : file_put_contents($env, $before);
+        @unlink($classes.'/Products.php');
+        @unlink($classes.'/Orders.php');
+        @unlink(config_path('omniconva.php'));
+    }
+});
+
+// "Enter to keep" used to fall back to env(), which is empty once the config
+// is cached — and the existing credential was replaced with nothing.
+it('never blanks a credential that is already in .env', function () {
+    $env = $this->app->environmentFilePath();
+    $before = file_exists($env) ? file_get_contents($env) : null;
+    file_put_contents($env, "OMNICONVA_WEBHOOK_TOKEN=\"keep-me\"\n");
+    $classes = $this->app->path('OmniConva');
+
+    try {
+        $this->artisan('omniconva:install', [
+            '--webhook-url' => 'https://api.omniconva.test/webhooks/custom-website/s1',
+            '--token' => '',
+            '--secret' => 'sec',
+            '--site-key' => '',
+            '--force' => true,
+        ])->assertSuccessful();
+
+        expect(file_get_contents($env))
+            ->toContain("OMNICONVA_WEBHOOK_TOKEN=\"keep-me\"\n")
+            ->toContain('OMNICONVA_SIGNING_SECRET="sec"');
     } finally {
         $before === null ? @unlink($env) : file_put_contents($env, $before);
         @unlink($classes.'/Products.php');

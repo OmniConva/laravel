@@ -23,7 +23,7 @@ use OmniConva\Laravel\Signature\Signer;
  */
 class OmniConva
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.0.1';
 
     public function __construct(
         private readonly Container $container,
@@ -53,6 +53,24 @@ class OmniConva
         return filled($this->config('webhook_url'))
             && filled($this->config('webhook_token'))
             && filled($this->config('signing_secret'));
+    }
+
+    /**
+     * The webhook URL has to be https: the token and every payload travel
+     * with it. Plain http is accepted for a local machine only.
+     *
+     * @internal
+     */
+    public static function assertSecureUrl(string $name, string $url): void
+    {
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $local = in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)
+            || str_ends_with($host, '.localhost')
+            || str_ends_with($host, '.test');
+        if ($scheme !== 'https' && ! ($scheme === 'http' && $local)) {
+            throw new OmniConvaException($name.' must start with https:// (http:// is allowed for localhost only)');
+        }
     }
 
     public function signer(): Signer
@@ -171,7 +189,11 @@ class OmniConva
      */
     public function deliver(string $topic, string $body): Response
     {
+        $url = (string) $this->config('webhook_url');
+        self::assertSecureUrl('OMNICONVA_WEBHOOK_URL', $url);
+
         return Http::timeout((int) ($this->config('webhook_timeout') ?? 10))
+            ->withoutRedirecting()
             ->withToken((string) $this->config('webhook_token'))
             ->withHeaders([
                 'X-Webhook-Topic' => $topic,
@@ -179,13 +201,18 @@ class OmniConva
                 'User-Agent' => 'omniconva-laravel/'.self::VERSION,
             ])
             ->withBody($body, 'application/json')
-            ->post((string) $this->config('webhook_url'));
+            ->post($url);
     }
 
     /** Queues one webhook, sent after the current database transaction commits. @param  array<string, mixed>  $payload */
     public function send(string $topic, array $payload): void
     {
-        $job = new SendWebhook($topic, json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        // A description in a legacy encoding loses its bad bytes rather than
+        // failing the whole product (and, from a model event, the save).
+        $job = new SendWebhook($topic, json_encode(
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR,
+        ));
         $queue = $this->config('queue') ?? [];
         if (! empty($queue['connection'])) {
             $job->onConnection($queue['connection']);

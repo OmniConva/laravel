@@ -77,7 +77,7 @@ it('serves one product, with its variants, or 404', function () {
 it('answers the health check', function () {
     $this->signedGet('/omniconva/health')
         ->assertOk()
-        ->assertJson(['package' => 'omniconva/laravel', 'version' => '1.0.0'])
+        ->assertJson(['package' => 'omniconva/laravel', 'version' => OmniConva::VERSION])
         ->assertJsonPath('framework', fn ($value) => str_starts_with($value, 'Laravel '));
 });
 
@@ -129,6 +129,19 @@ it('answers test orders without calling your handler, unless told to', function 
     app()->forgetInstance(OmniConva::class);
     $this->signedPost('/omniconva/orders', orderPayload(['test' => true, 'id' => 'test-2']))->assertCreated();
     expect(FixtureOrders::$created)->toHaveCount(1);
+});
+
+// Only an OrderRefused message reaches OmniConva's logs; a crash in the
+// handler (SQL, hosts, customer data in its message) does not.
+it('keeps the details of a failed handler out of the response', function () {
+    $payload = orderPayload(['customer' => ['name' => 'Break Me', 'phone' => '01700000000']]);
+    $response = $this->signedPost('/omniconva/orders', json_encode($payload))
+        ->assertStatus(500)
+        ->assertJson(['message' => 'The order could not be created']);
+    expect($response->getContent())->not->toContain('10.0.0.5');
+    expect(FixtureOrders::$created)->toHaveCount(0);
+    // The key was released: a corrected retry gets through.
+    $this->signedPost('/omniconva/orders', json_encode(orderPayload()))->assertStatus(201);
 });
 
 it('refuses an order body it cannot read', function () {
